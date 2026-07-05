@@ -195,6 +195,7 @@ def generate_titles(num_recs, movies):
 
 async def validate_movie(title):
     title = title.strip().lower()
+
     url = "https://api.themoviedb.org/3/search/movie"
     params = {
         "query": title,
@@ -205,12 +206,16 @@ async def validate_movie(title):
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params) as response:
-            if response.status == 200:
-                results = await response.json()
-                if results['results']:
-                    return results["results"][0]  # Return the first matching movie
-                else:
-                    print(f"No results found for '{title}'. Please check the title and try again.")
+            if response.status != 200:
+                return None
+
+            data = await response.json()
+            results = data.get("results", [])
+
+            if not results:
+                return None
+
+            return results[0]
 
 async def get_movie_details(tmdb_id):
     tmdb_url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
