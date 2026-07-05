@@ -8,11 +8,10 @@ import aiohttp
 import asyncio
 from tavily import TavilyClient
 
-load_dotenv()
-api_key = os.getenv("GROQ_API_KEY")
-tmdb_api = os.getenv("TMDB_API_KEY")
-omdb_api = os.getenv("OMDB_API_KEY")
-tavily_api = os.getenv("TAVILY_API_KEY")
+api_key = st.secrets["GROQ_API_KEY"]
+tmdb_api = st.secrets["TMDB_API_KEY"]
+omdb_api = st.secrets["OMDB_API_KEY"]
+tavily_api = st.secrets["TAVILY_API_KEY"]
 
 url = "https://api.groq.com/openai/v1/chat/completions"
 headers = {
@@ -47,7 +46,7 @@ def title_generation_prompt(num_recs, movies):
 
 # def explanation_prompt():
     return """
-    You are KinoAgent, a world-class film recommendation expert.
+    You are Kinophile, a world-class film recommendation expert.
     Treat cinema as art.
     
     You will be given:
@@ -72,7 +71,7 @@ def title_generation_prompt(num_recs, movies):
 
 def explanation_prompt():
     return """
-    You are KinoAgent, an expert film critic and recommendation analyst with deep knowledge of world cinema.
+    You are Kinophile, an expert film critic and recommendation analyst with deep knowledge of world cinema.
 
     Your job is to explain WHY each recommended film is a great match for the user's taste.
 
@@ -338,7 +337,7 @@ def search_web(query):
     return results
 
 st.set_page_config(
-    page_title="KinoAgent",
+    page_title="Kinophile",
     page_icon="🎬",
     layout="wide"
 )
@@ -358,7 +357,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎬 KinoAgent")
+st.title("Kinophile")
 st.caption("Your personal cinema recommendation expert")
 
 if "movies" not in st.session_state:
@@ -384,7 +383,7 @@ if "selected_movie" not in st.session_state:
 
 if not st.session_state.messages:
     st.session_state.messages = [
-        {"role": "system", "content": f"""You are KinoAgent, a cinema expert assistant.
+        {"role": "system", "content": f"""You are Kinophile, a cinema expert assistant.
     Be conversational and brief. Only elaborate when the user specifically asks.
     If the user says hi or hey, just greet them back simply.
     The user's favourites: {st.session_state.movies}
@@ -406,7 +405,7 @@ with st.sidebar:
                 with st.chat_message("assistant"):
                     st.markdown(message["content"])
     
-    if prompt := st.chat_input("Ask KinoAgent anything..."):
+    if prompt := st.chat_input("Ask Kinophile anything..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.spinner("Thinking..."):
             reply = chat_agent(st.session_state.messages)
@@ -458,7 +457,7 @@ if get_recs_button and st.session_state.movies:
     st.session_state.recommendations_made = True
     
     st.session_state.messages = [
-        {"role": "system", "content": f"""You are KinoAgent, a cinema expert. 
+        {"role": "system", "content": f"""You are Kinophile, a cinema expert. 
         You just recommended these films: {[m['title'] for m in st.session_state.enriched]}
         The user's favourite films were: {st.session_state.movies}
         Discuss these films naturally and answer any questions about them."""}

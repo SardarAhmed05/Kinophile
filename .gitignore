@@ -1,3 +1,4 @@
 .env
 streamlit_appSCRAP.py
 test.ipynb
+__pycache__

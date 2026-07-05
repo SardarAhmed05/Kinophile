@@ -1,0 +1,5 @@
+streamlit
+requests
+aiohttp
+python-dotenv
+tavily-python
