@@ -7,6 +7,7 @@ import streamlit as st
 import aiohttp
 import asyncio
 from tavily import TavilyClient
+import concurrent.futures
 
 api_key = st.secrets["GROQ_API_KEY"]
 tmdb_api = st.secrets["TMDB_API_KEY"]
@@ -19,7 +20,13 @@ headers = {
     "Content-Type": "application/json"
 }
 
-def title_generation_prompt(num_recs, movies):
+def run_async(coro):
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        future = pool.submit(asyncio.run, coro)
+        return future.result()
+
+def title_generation_prompt(num_recs, movies, previous=[]):
+    avoid = f"\nAlso do NOT recommend these previously recommended films: {previous}" if previous else ""
     return f"""
     You are a world-class film recommendation expert.
     
@@ -34,7 +41,9 @@ def title_generation_prompt(num_recs, movies):
     - Appreciation for international or arthouse cinema
     
     Based on this analysis, recommend exactly {num_recs} NEW films.
-    STRICTLY do NOT include any of these films: {movies}
+    STRICTLY FORBIDDEN - do NOT recommend ANY of these films under any circumstances:
+    Favourite films: {movies}
+    Previously recommended: {previous}
     Prioritize thoughtful, insightful recommendations over obvious choices.
     Balance acclaimed classics with lesser-known gems.
     Do NOT ask questions. Always return recommendations.
@@ -42,31 +51,6 @@ def title_generation_prompt(num_recs, movies):
     Return ONLY this JSON format, nothing else:
     {{"titles": ["Movie1", "Movie2", "Movie3"]}}
     You MUST recommend exactly {num_recs} films. Count carefully.
-    """
-
-# def explanation_prompt():
-    return """
-    You are Kinophile, a world-class film recommendation expert.
-    Treat cinema as art.
-    
-    You will be given:
-    - The user's favourite films with verified metadata
-    - A list of recommended films with verified metadata
-    
-    Rules:
-    - ONLY use the provided movie data. Never invent directors, ratings, or facts.
-    - Do NOT mention directors or facts about the user's favourite films unless explicitly provided in the data.
-    - Do NOT recommend new movies beyond what is provided.
-    - For each recommended film explain:
-        * Why it matches the user's taste
-        * Which of their favourite films it resembles and why
-        * What makes this film unique
-    - Be warm, conversational, and enthusiastic.
-    - Keep explanations concise and insightful.
-    - No tables, no JSON, no bullet lists. Natural flowing prose.
-
-    Return ONLY this JSON format, nothing else:
-    {"Movie Title": "explanation text", "Movie Title 2": "explanation text 2"}
     """
 
 def explanation_prompt():
@@ -179,19 +163,29 @@ def explanation_prompt():
     Return no additional text.
 """
 
-def generate_titles(num_recs, movies):
-    messages = [{"role" : "system", "content" : title_generation_prompt(num_recs, movies)}]
-    response = requests.post(url, headers=headers, json={"model": "openai/gpt-oss-20b", "messages": messages, "temperature": 0.7})
-    if response.status_code == 200:
+def generate_titles(num_recs, movies, previous=[]):
+    for attempt in range(3):
+        messages = [{"role": "system", "content": title_generation_prompt(num_recs, movies, previous)}]
         try:
+            response = requests.post(url, headers=headers, json={
+                "model": "openai/gpt-oss-20b",
+                "messages": messages,
+                "temperature": 0.7
+            })
+            print("STATUS:", response.status_code)
+            print("CONTENT:", response.text)
             data = response.json()
-            titles = json.loads(data["choices"][0]["message"]["content"])
+            content = data["choices"][0]["message"]["content"]
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            titles = json.loads(content.strip())
             return titles["titles"]
-        except (json.JSONDecodeError, KeyError):
-            return []
-    
-    else:
-        print("API CALL FAILED")
+        except:
+            continue
+    return []
 
 async def validate_movie(title):
     title = title.strip().lower()
@@ -259,13 +253,13 @@ async def enrich_recommendations(rec_movies):
 
 @st.cache_data
 def generate_explanations(user_movies, enriched_movies):
-    for attempt in range(3):
+    for attempt in range(5):
         messages = [
             {"role": "system", "content" : explanation_prompt()}
         ]
         user_message = f"User's favourite films with verified data: {user_movies}\n\nRecommended films with verified data: {enriched_movies}"
         messages.append({"role": "user", "content": user_message})
-        response = requests.post(url, headers=headers, json={"model": "openai/gpt-oss-20b", "messages": messages, "temperature": 0.7 })
+        response = requests.post(url, headers=headers, json={"model": "llama-3.3-70b-versatile", "messages": messages, "temperature": 0.4 })
         try:
             content = response.json()["choices"][0]["message"]["content"]
             content = content.strip()
@@ -398,6 +392,9 @@ if not st.session_state.messages:
     Recommended films: {[m['title'] for m in st.session_state.enriched]}"""}
     ]
 
+if "previous_recommendations" not in st.session_state:
+    st.session_state.previous_recommendations = []
+
 # KINO BOT
 
 with st.sidebar:
@@ -448,14 +445,20 @@ st.divider()
 num_recs = st.slider("How many recommendations?", min_value=1, max_value=10, value=5)
 get_recs_button = st.button("🎬 Get Recommendations", type="primary")
 
+if get_recs_button:
+    if not st.session_state.movies:
+        st.error("Please add at least one movie before getting recommendations.")
+        st.stop()
+
 if get_recs_button and st.session_state.movies:
     with st.spinner("Analyzing your taste..."):
-        titles = generate_titles(num_recs, st.session_state.movies)
+        titles = generate_titles(num_recs, st.session_state.movies, st.session_state.previous_recommendations)
         if not titles:
             st.error("Could not generate recommendations. Please try again.")
             st.stop()
-        st.session_state.enriched = asyncio.run(enrich_recommendations(titles))
-        user_enriched = asyncio.run(enrich_recommendations(st.session_state.movies))
+        st.session_state.enriched = run_async(enrich_recommendations(titles))
+        st.session_state.previous_recommendations.extend([m['title'] for m in st.session_state.enriched])        
+        user_enriched = run_async(enrich_recommendations(titles))
         explanation = generate_explanations(user_enriched, st.session_state.enriched)
         st.session_state.explanations = explanation
         if not explanation:
@@ -491,4 +494,5 @@ if st.session_state.selected_movie and st.session_state.explanations:
     st.subheader(f"Why {st.session_state.selected_movie}?")
     if st.session_state.selected_movie in st.session_state.explanations:
         st.write(st.session_state.explanations[st.session_state.selected_movie])
+
 
