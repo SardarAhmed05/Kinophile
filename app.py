@@ -193,7 +193,6 @@ def generate_titles(num_recs, movies):
     else:
         print("API CALL FAILED")
 
-@st.cache_data
 async def validate_movie(title):
     title = title.strip().lower()
     url = "https://api.themoviedb.org/3/search/movie"
@@ -213,7 +212,6 @@ async def validate_movie(title):
                 else:
                     print(f"No results found for '{title}'. Please check the title and try again.")
 
-@st.cache_data
 async def get_movie_details(tmdb_id):
     tmdb_url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
     tmdb_params = {"api_key" : tmdb_api}
