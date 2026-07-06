@@ -235,7 +235,8 @@ async def get_movie_details(tmdb_id):
         "release_year": release_year,
         "imdb_rating": imdb_rating,
         "director": director,
-        "poster": f"https://image.tmdb.org/t/p/w500{poster_path}"
+        "poster": f"https://image.tmdb.org/t/p/w500{poster_path}",
+        "imdb_id": imdb_id
     }
 
 async def enrich_recommendations(rec_movies):
@@ -491,6 +492,8 @@ if st.session_state.enriched:
             st.write(f"**{movie['title']}**")
             st.write(f"⭐ IMDB: {movie['imdb_rating']}")
             st.caption(f"📅 {movie['release_year']} · 🎬 {movie['director']}")
+            if movie.get("imdb_id"):
+                st.markdown(f"[View on IMDB](https://www.imdb.com/title/{movie['imdb_id']}/)", unsafe_allow_html=True)
             if st.button("Why this film?", key=f"movie_{i}"):
                 st.session_state.selected_movie = movie["title"]
 
