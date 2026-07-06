@@ -362,6 +362,7 @@ st.markdown("""
 st.title("Kinophile")
 st.caption("Your personal cinema recommendation expert")
 
+
 if "movies" not in st.session_state:
     st.session_state.movies = []
 
@@ -382,6 +383,9 @@ if "explanations" not in st.session_state:
 
 if "selected_movie" not in st.session_state:
     st.session_state.selected_movie = None
+
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0
 
 if not st.session_state.messages:
     st.session_state.messages = [
@@ -420,15 +424,16 @@ with st.sidebar:
 st.divider()
 st.subheader("🎬 Movies you love")
 
-with st.form(key="movie_form", clear_on_submit=True):
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        movie_input = st.text_input("Enter a movie title", label_visibility="collapsed", placeholder="e.g. Blade Runner 2049")
-    with col2:
-        add_button = st.form_submit_button("Add")
+col1, col2 = st.columns([4, 1])
+with col1:
+    movie_input = st.text_input("Enter a movie title", label_visibility="collapsed", placeholder="e.g. Blade Runner 2049", key=f"movie_input_{st.session_state.input_key}")
+with col2:
+    add_button = st.button("Add")
 
 if add_button and movie_input:
     st.session_state.movies.append(movie_input.strip())
+    st.session_state.input_key += 1
+    st.rerun()
 
 if st.session_state.movies:
     st.write("**Your list:**")
