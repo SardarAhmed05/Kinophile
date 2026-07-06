@@ -403,6 +403,7 @@ if "previous_recommendations" not in st.session_state:
 # KINO BOT
 
 with st.sidebar:
+    st.sidebar.caption("← Click the arrow to collapse")
     st.title("💬 Chat with KinoBOT")
     st.caption("Ask anything about the recommendations")
     
