@@ -260,7 +260,7 @@ def generate_explanations(user_movies, enriched_movies):
         ]
         user_message = f"User's favourite films with verified data: {user_movies}\n\nRecommended films with verified data: {enriched_movies}"
         messages.append({"role": "user", "content": user_message})
-        response = requests.post(url, headers=headers, json={"model": "llama-3.3-70b-versatile", "messages": messages, "temperature": 0.4 })
+        response = requests.post(url, headers=headers, json={"model": "openai/gpt-oss-120b", "messages": messages, "temperature": 0.4 })
         try:
             content = response.json()["choices"][0]["message"]["content"]
             content = content.strip()
@@ -296,13 +296,19 @@ def chat_agent(messages):
     ]
     
     response = requests.post(url, headers=headers, json={
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
         "messages": messages,
         "temperature": 0.5,
         "tools": tools
     })
     
     data = response.json()
+
+    if "choices" not in data:
+        err = data.get("error", {}).get("message", str(data))
+        st.error(f"Groq API error: {err}")
+        return "Sorry, I ran into an issue talking to the model. Please try again."
+    
     message = data["choices"][0]["message"]
     
     if message.get("tool_calls"):
@@ -322,7 +328,7 @@ def chat_agent(messages):
         })
         
         final_response = requests.post(url, headers=headers, json={
-            "model": "llama-3.3-70b-versatile",
+            "model": "openai/gpt-oss-120b",
             "messages": messages,
             "temperature": 0.5
         })
